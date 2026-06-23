@@ -177,6 +177,9 @@ body{background:var(--dark);color:var(--light);font-family:'Inter',sans-serif;ov
 .contact-info h3{font-family:'Cormorant Garamond',serif;font-size:2rem;margin-bottom:32px}
 .contact-item{display:flex;gap:16px;margin-bottom:28px;align-items:flex-start}
 .c-icon{width:40px;height:40px;border:1px solid rgba(201,168,76,.3);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:1rem;flex-shrink:0}
+a.contact-item{color:inherit;text-decoration:none;cursor:pointer;transition:.25s}
+a.contact-item:hover .c-icon{border-color:#25D366;background:rgba(37,211,102,.08)}
+a.contact-item:hover .c-val{color:#25D366}
 .c-label{font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
 .c-val{font-size:.85rem;color:rgba(245,240,232,.7);line-height:1.6}
 .contact-form{display:flex;flex-direction:column;gap:14px}
@@ -720,10 +723,10 @@ footer{background:var(--dark2);padding:60px 80px 28px;border-top:1px solid rgba(
         <div class="c-icon">📍</div>
         <div><div class="c-label">Address</div><div class="c-val">TECHNET INFORMATIQUES PRIVATE LIMITED<br>97, Floor-3, Plot-339, Rajesh Building,<br>Dr. Dadasaheb Bhadkamkar Marg,<br>Nr. Bhadkamkar Marg Police Station,<br>Grant Road, Mumbai – 400007,<br>Maharashtra, India</div></div>
       </div>
-      <div class="contact-item">
-        <div class="c-icon">📞</div>
-        <div><div class="c-label">Phone</div><div class="c-val">+91 93237 17543</div></div>
-      </div>
+      <a class="contact-item" href="https://wa.me/919323717543" target="_blank" rel="noopener">
+        <div class="c-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="#25D366" xmlns="http://www.w3.org/2000/svg"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.85.5 3.59 1.46 5.11L2 22l5.13-1.55a9.84 9.84 0 0 0 4.91 1.32h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2zm0 18.1a8.18 8.18 0 0 1-4.17-1.14l-.3-.18-3.04.92.93-2.96-.2-.31a8.16 8.16 0 0 1-1.25-4.42c0-4.51 3.67-8.18 8.18-8.18 4.51 0 8.18 3.67 8.18 8.18 0 4.51-3.67 8.18-8.18 8.18zm4.48-6.13c-.25-.12-1.47-.72-1.7-.8-.23-.08-.39-.12-.56.12-.16.25-.64.8-.79.97-.15.16-.29.18-.55.06-.25-.12-1.06-.39-2.02-1.25-.75-.66-1.25-1.48-1.4-1.73-.15-.25-.02-.39.11-.51.12-.12.27-.31.41-.46.14-.16.18-.27.27-.45.09-.18.04-.34-.04-.46-.08-.12-.34-.83-.47-1.13-.13-.3-.27-.27-.37-.27h-.32c-.1 0-.27.04-.41.2-.14.16-.55.54-.55 1.31 0 .77.56 1.51.64 1.62.08.11 1.06 1.61 2.57 2.26 1.51.65 1.51.43 1.78.4.27-.02.86-.35.98-.69.12-.34.12-.63.08-.69-.04-.06-.16-.1-.34-.18z"/></svg></div>
+        <div><div class="c-label">WhatsApp</div><div class="c-val">+91 93237 17543</div></div>
+      </a>
       <div class="contact-item">
         <div class="c-icon">✉️</div>
         <div><div class="c-label">Email</div><div class="c-val">amit@technetinfo.in</div></div>
