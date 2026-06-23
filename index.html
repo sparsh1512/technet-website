@@ -273,6 +273,13 @@ footer{background:var(--dark2);padding:60px 80px 28px;border-top:1px solid rgba(
 .pw-price{font-family:'Inter',sans-serif;font-weight:700;font-size:1.18rem;letter-spacing:.01em;color:var(--gold);text-align:right;line-height:1}
 .pw-gst{font-size:.6rem;color:rgba(245,240,232,.3);text-align:right;line-height:1.6}
 
+/* ACTIVATION PRICING (shown only when an uploaded sheet carries it) */
+.price-act{font-size:.72rem;color:#3ddc84;font-weight:600;letter-spacing:.01em;margin-top:2px}
+.act-box{margin-top:10px;padding:9px 12px;background:rgba(61,220,132,.06);border:1px solid rgba(61,220,132,.22);border-radius:4px}
+.act-box-title{font-size:.56rem;letter-spacing:.18em;text-transform:uppercase;color:#3ddc84;font-weight:700;margin-bottom:5px}
+.act-line{display:flex;justify-content:space-between;gap:10px;font-size:.68rem;padding:2px 0;color:rgba(245,240,232,.5)}
+.act-line b{color:var(--light);font-weight:600;text-align:right}
+
 /* PAYMENT MODAL */
 #pay-modal{position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:9990;display:none;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
 #pay-modal.open{display:flex}
@@ -1217,6 +1224,25 @@ function getBadge(item, cat) {
 
 function fmt(n) { return '₹' + n.toLocaleString('en-IN'); }
 
+// "Price after activation" line shown right under the listed price, when an
+// uploaded sheet's row carried a different activation price.
+function priceActLineHTML(p) {
+  if (!p || p.priceAct == null || p.priceAct === p.price) return '';
+  return `<div class="price-act">After activation: ${fmt(p.priceAct)}</div>`;
+}
+
+// Full activation-scheme box (scheme/amount/valid dates) shown on the card
+// body when the uploaded sheet carried any of that data for this product.
+function actBlockHTML(p) {
+  if (!p || (!p.actDetail && p.actAmt == null && !p.actDate)) return '';
+  return `<div class="act-box">
+    <div class="act-box-title">Activation Offer</div>
+    ${p.actDetail ? `<div class="act-line"><span>Scheme</span><b>${p.actDetail}</b></div>` : ''}
+    ${p.actAmt != null ? `<div class="act-line"><span>Amount</span><b>${fmt(p.actAmt)}</b></div>` : ''}
+    ${p.actDate ? `<div class="act-line"><span>Valid</span><b>${p.actDate}</b></div>` : ''}
+  </div>`;
+}
+
 // Builds a clean, readable "config" line from a product's spec fields —
 // skips blank/'—' values and avoids stacking a unit label onto a value that
 // already contains it (e.g. won't turn "512GB SSD" into "512GB SSD SSD").
@@ -1327,10 +1353,27 @@ const ADMIN_HEADER_MAP = {
   display: 'disp', disp: 'disp', screen: 'disp',
   gpu: 'gpu', graphics: 'gpu',
   color: 'color', colour: 'color',
-  subcat: 'subcat', subcategory: 'subcat', series: 'subcat'
+  subcat: 'subcat', subcategory: 'subcat', series: 'subcat',
+  // "Price after activation" / vendor activation-scheme columns (optional)
+  priceafteractivation: 'priceAct', activationprice: 'priceAct', priceafteract: 'priceAct',
+  pricepostactivation: 'priceAct', netpriceafteractivation: 'priceAct', actprice: 'priceAct',
+  activationamount: 'actAmt', activationamt: 'actAmt', amountofactivation: 'actAmt',
+  activationdetail: 'actDetail', activationdetails: 'actDetail', activationscheme: 'actDetail',
+  scheme: 'actDetail', activationschemedetail: 'actDetail',
+  activationdate: 'actDate', activationvaliddate: 'actDate', activationvalidity: 'actDate',
+  activationvalid: 'actDate', validity: 'actDate', activationperiod: 'actDate'
 };
 function normHeader(h) {
   return String(h || '').toLowerCase().replace(/[\s_\-./]+/g, '');
+}
+// Parse a number out of a cell, returning null (not 0) when it's blank/N-A/unparseable —
+// used for optional "price after activation" fields where 0/blank must mean "not offered".
+function numOrNull(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const s = String(v);
+  if (/N\/A/i.test(s)) return null;
+  const n = parseFloat(s.replace(/[^0-9.]/g, ''));
+  return isNaN(n) ? null : n;
 }
 
 // ---- Fallback parser for "raw distributor price-list" sheets -------------
@@ -1435,6 +1478,131 @@ function tryParseRawPriceList(sheet) {
   return { rows: out, skippedSections };
 }
 
+// ---- Fallback parser #2: fixed-column distributor sheet ------------------
+// Many real Lenovo/Asus/Gigabyte distributor price lists use a FIXED column
+// layout rather than named headers: Part No in column B, Description in
+// column D, Price in column E, with optional activation-scheme columns
+// further across the row (Activation Detail / Amount / Valid dates / "Price
+// After Activation"). This is the exact layout already proven to work on
+// the site's separate Search page — ported here so the Admin upload accepts
+// the same real-world sheets instead of erroring with "No valid rows found".
+//
+// Column map (0-indexed, matches the Search page's parser):
+//   1  = Part Number          3  = Product Name / Description
+//   4  = Price                5  = Notes (e.g. "CDC WITH BAG")
+//   8  = Activation Detail    9  = Activation Amount
+//   10 = Activation Date      12 = Price After Activation
+//   13 = Activation Amount (alt column, used if 9 is blank)
+function tryParsePositionalSheet(sheet) {
+  const PART_RE = /^[A-Z0-9][A-Z0-9\-\s]{5,29}$/i;
+  const CPU_RE = /\b(?:Core[\s_-]*i[3579][\s_-]?\d{3,5}[A-Z]{0,3}|i[3579][\s_-]?\d{3,5}[A-Z]{0,3}|Ryzen[\s_-]*[3579][\s_-]?\d{3,4}[A-Z]{0,3}|R[3579][\s_-]\d{2,4}[A-Z]{0,3}|Core[\s_-]*Ult(?:ra)?[\s_-]*[\w®™\s]{0,4}\d{2,4}[A-Z]?|CORE[\s_]*ULT\d[\s_]*\d{2,4}[A-Z]?|Snapdragon[\s_-]*X\w*|Celeron[\w-]*|Pentium[\w-]*|Athlon[\w-]*|Apple[\s_-]*M[1-4][A-Za-z]*|Ryzen[™\s]*AI\s*\d\s*\d{2,4})\b/i;
+  const RAM_RE = /\b\d{1,3}\s?GB(?:[\s_-]?DDR\d[A-Za-z]?)?\b(?!\s?[\/,_-]?\s?(?:SSD|HDD|EMMC|NVME|M\.2|Storage))/i;
+  const SSD_RE = /\b(?:\d{2,4}\s?GB|\d(?:\.\d)?\s?TB)[\s_-]?(?:SSD|HDD|EMMC|NVME|M\.2[\w\s]*|PCIe[®\s\w.0-9]*)\b/i;
+  const DISP_RE = /\b\d{2}(?:\.\d)?\s?(?:"|''|-?inch\b)[^\/(),]{0,26}|\b\d{2}(?:\.\d)?[\s_-]?(?:FHD\+?|WUXGA|QHD\+?|UHD\+?|HD\+?)\b[\w .]{0,16}/i;
+  const GPU_RE  = /\b(?:RTX\s?\d{3,4}[A-Za-z]*(?:\s?\d{1,2}\s?GB)?|GTX\s?\d{3,4}[A-Za-z]*(?:\s?\d{1,2}\s?GB)?|(?:AMD\s?)?Radeon[A-Za-z0-9® ]*|Iris\s?Xe[A-Za-z0-9® ]*|(?:Intel[®\s]*)?UHD\s?Graphics[A-Za-z0-9® ]*|MX\s?\d{3}|Arc\s?Graphics|Arc\s?[A-Z]\d{2,4})\b/i;
+  const COLOR_RE = /\b(Arctic Grey|Storm Grey|Mecha Gray|Eclipse Gray|Cosmos Gray|Cloud Grey|Luna Grey|Zumaia Gray|Ponder Blue|Platinum|Graphite|Black|Grey|Gray|Silver|White|Blue|Red|Gold|Bronze|Sand)\b/i;
+
+  function isPositionalPartNo(v) {
+    if (!v || typeof v !== 'string') return false;
+    const t = v.trim();
+    if (t.length < 6 || t.length > 30) return false;
+    const alphanum = t.replace(/[\-\s]/g, '');
+    if (alphanum.length < 5) return false;
+    if ((t.match(/\s/g) || []).length > 3) return false;
+    return PART_RE.test(t);
+  }
+  function detectPositionalBrand(name, part) {
+    const u = (name + ' ' + part).toUpperCase();
+    if (u.includes('ASUS') || u.includes('ROG') || u.includes('ZENBOOK') || u.includes('VIVOBOOK') ||
+        u.includes('TUF') || u.includes('ZEPHYRUS') || u.includes('PROART')) return 'asus';
+    if (u.includes('GIGABYTE') || u.includes('AORUS')) return 'gigabyte';
+    if (u.includes('LENOVO') || u.includes('IDEAPAD') || u.includes('LEGION') ||
+        u.includes('YOGA') || u.includes('LOQ') || u.includes('THINKPAD')) return 'lenovo';
+    return '';
+  }
+  function detectPositionalCat(name, sectionCtx) {
+    const u = (name + ' ' + (sectionCtx || '')).toUpperCase();
+    if (u.includes(' AIO') || u.includes('ALL-IN-ONE') || u.includes('ALL IN ONE')) return 'aio';
+    if (u.includes('DESKTOP') || u.includes(' SFF') || u.includes('TOWER')) return 'desktop';
+    return 'laptops';
+  }
+
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+  const out = [];
+  const skippedSections = [];
+  let sectionCtx = '';
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length < 2) continue;
+
+    const partRaw = row[1];
+    const nameRaw = row[3];
+
+    // Section-header row: col B empty, col D names a brand section (e.g. "ASUS LAPTOP")
+    if (!partRaw && nameRaw && typeof nameRaw === 'string') {
+      const nt = nameRaw.trim();
+      if (/^(ASUS|LENOVO|GIGABYTE)/i.test(nt)) {
+        sectionCtx = nt;
+      } else if (/^(ACER|HP|DELL|MSI|APPLE)/i.test(nt)) {
+        sectionCtx = '';
+        skippedSections.push(nt);
+      }
+      continue;
+    }
+
+    if (!isPositionalPartNo(partRaw)) continue;
+    if (!nameRaw) continue;
+
+    const part = String(partRaw).trim();
+    const name = String(nameRaw).trim();
+
+    const brand = detectPositionalBrand(name, part) || detectPositionalBrand(sectionCtx, '');
+    if (!brand) continue; // unsupported brand (Acer/HP/Dell/...) — never list it
+
+    const price = numOrNull(row[4]);
+    if (!price) continue;
+
+    const category  = detectPositionalCat(name, sectionCtx);
+    const notes      = row[5]  ? String(row[5]).trim()  : '';
+    const actDetail  = row[8]  ? String(row[8]).trim()  : '';
+    const actAmtVal  = numOrNull(row[9]) != null ? numOrNull(row[9]) : numOrNull(row[13]);
+    const actDate    = row[10] ? String(row[10]).trim() : '';
+    const priceActVal = numOrNull(row[12]);
+
+    const cpuMatch   = name.match(CPU_RE);
+    const ramMatch   = name.match(RAM_RE);
+    const ssdMatch   = name.match(SSD_RE);
+    const dispMatch  = name.match(DISP_RE);
+    const gpuMatch   = name.match(GPU_RE);
+    const colorMatch = name.match(COLOR_RE);
+
+    let displayName = name.replace(/\s*\(.*\)\s*$/, '').replace(part, '').trim();
+    if (!displayName || displayName.length < 3) displayName = name.split('(')[0].trim();
+
+    out.push({
+      brand, category,
+      name: displayName || name,
+      part,
+      price: Math.round(price),
+      cpu:  cpuMatch  ? cpuMatch[0].trim().replace(/[_-]+/g, ' ')  : '—',
+      ram:  ramMatch  ? ramMatch[0].trim().replace(/[_-]+/g, ' ')  : '—',
+      ssd:  ssdMatch  ? ssdMatch[0].trim().replace(/[_-]+/g, ' ')  : '—',
+      disp: dispMatch ? dispMatch[0].trim().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ') : '—',
+      gpu:  gpuMatch  ? gpuMatch[0].trim().replace(/[_-]+/g, ' ')  : '—',
+      color: colorMatch ? colorMatch[0].trim() : '',
+      subcat: 'Standard',
+      notes,
+      priceAct: priceActVal != null ? Math.round(priceActVal) : null,
+      actAmt: actAmtVal != null ? Math.round(actAmtVal) : null,
+      actDetail,
+      actDate
+    });
+  }
+
+  return { rows: out, skippedSections };
+}
+
 function handleAdminFile(file) {
   if (!file) return;
   adminParsedRows = null;
@@ -1472,6 +1640,8 @@ function handleAdminFile(file) {
           problems.push(`Row ${i + 2}: brand "${out.brand}" not recognised (use Lenovo / Asus / Gigabyte) — skipped`);
           return;
         }
+        const priceActVal = numOrNull(out.priceAct);
+        const actAmtVal   = numOrNull(out.actAmt);
         mapped.push({
           brand, category: ['laptops', 'aio', 'desktop'].includes(category) ? category : 'laptops',
           name,
@@ -1483,7 +1653,12 @@ function handleAdminFile(file) {
           disp: String(out.disp || '—'),
           gpu: String(out.gpu || '—'),
           color: String(out.color || ''),
-          subcat: String(out.subcat || 'Standard')
+          subcat: String(out.subcat || 'Standard'),
+          notes: '',
+          priceAct: priceActVal != null ? Math.round(priceActVal) : null,
+          actAmt: actAmtVal != null ? Math.round(actAmtVal) : null,
+          actDetail: out.actDetail ? String(out.actDetail).trim() : '',
+          actDate: out.actDate ? String(out.actDate).trim() : ''
         });
       });
 
@@ -1497,9 +1672,30 @@ function handleAdminFile(file) {
         return;
       }
 
-      // No clean column-template match — try the raw distributor price-list parser.
-      // This ONLY extracts text that is literally present in the sheet; it never invents data.
+      // No clean column-template match — try the fixed-column distributor sheet
+      // layout (Part No / Description / Price / Activation columns in known
+      // positions) — this is the layout the site's Search page already parses
+      // successfully, and also captures "price after activation" data.
       showAdminMsg('Standard columns not found — trying to read this as a distributor price list…');
+      let positional;
+      try { positional = tryParsePositionalSheet(sheet); } catch (e) { positional = { rows: [], skippedSections: [] }; }
+
+      if (positional.rows.length) {
+        adminParsedRows = positional.rows;
+        const withAct = positional.rows.filter(r => r.priceAct != null || r.actAmt != null || r.actDetail).length;
+        let msg = `Recognised this as a distributor price list and extracted ${positional.rows.length} product${positional.rows.length !== 1 ? 's' : ''} from "${file.name}", taken exactly as written (name, part no., price${withAct ? ', and activation pricing where present' : ''}). The sheet's price is used as the FINAL price — no GST is added.`;
+        if (withAct) msg += ` ${withAct} product${withAct !== 1 ? 's' : ''} include "price after activation" details, which will show on the site.`;
+        if (positional.skippedSections.length) {
+          msg += ` Sections for unsupported brands were skipped: ${positional.skippedSections.slice(0, 5).join(', ')}${positional.skippedSections.length > 5 ? '…' : ''} (only Lenovo, Asus and Gigabyte are listed on this site).`;
+        }
+        showAdminMsg(msg, 'ok');
+        renderAdminPreview(positional.rows);
+        document.getElementById('admin-apply-btn').disabled = false;
+        return;
+      }
+
+      // Still nothing — try the more general any-column distributor scanner.
+      // This ONLY extracts text that is literally present in the sheet; it never invents data.
       let raw;
       try { raw = tryParseRawPriceList(sheet); } catch (e) { raw = { rows: [], skippedSections: [] }; }
 
@@ -1528,11 +1724,16 @@ function handleAdminFile(file) {
 function renderAdminPreview(rows) {
   const wrap = document.getElementById('admin-preview-wrap');
   const table = document.getElementById('admin-preview-table');
-  const head = '<tr><th>Brand</th><th>Category</th><th>Name</th><th>Part No.</th><th>Price</th><th>Series</th></tr>';
+  const hasAct = rows.some(p => p.priceAct != null || p.actAmt != null || p.actDetail);
+  const cols = hasAct ? 7 : 6;
+  const head = '<tr><th>Brand</th><th>Category</th><th>Name</th><th>Part No.</th><th>Price</th>' +
+    (hasAct ? '<th>After Activation</th>' : '') + '<th>Series</th></tr>';
   const body = rows.slice(0, 60).map(p =>
-    `<tr><td>${p.brand}</td><td>${p.category}</td><td>${p.name}</td><td>${p.part}</td><td>${fmt(p.price)}</td><td>${p.subcat}</td></tr>`
+    `<tr><td>${p.brand}</td><td>${p.category}</td><td>${p.name}</td><td>${p.part}</td><td>${fmt(p.price)}</td>` +
+    (hasAct ? `<td>${p.priceAct != null ? fmt(p.priceAct) : '—'}</td>` : '') +
+    `<td>${p.subcat}</td></tr>`
   ).join('');
-  table.innerHTML = head + body + (rows.length > 60 ? `<tr><td colspan="6" style="text-align:center;color:rgba(245,240,232,.35)">…and ${rows.length - 60} more</td></tr>` : '');
+  table.innerHTML = head + body + (rows.length > 60 ? `<tr><td colspan="${cols}" style="text-align:center;color:rgba(245,240,232,.35)">…and ${rows.length - 60} more</td></tr>` : '');
   wrap.style.display = 'block';
 }
 
@@ -1755,10 +1956,12 @@ function renderExpGrid(brand) {
         <div class="pw-name">${p.name}</div>
         <div class="pw-spec">${specLine(p)}</div>
         <div class="pw-part">${p.part}</div>
+        ${actBlockHTML(p)}
       </div>
       <div class="pw-right">
         <div>
           <div class="pw-price">${fmt(p.price)}</div>
+          ${priceActLineHTML(p)}
           ${CUSTOM_CATALOGUE_ACTIVE ? '' : `<div class="pw-gst">+GST: ${fmt(gst)}</div>
           <div class="pw-gst" style="color:var(--gold);font-size:.65rem;font-weight:600">Total: ${fmt(total)}</div>`}
         </div>
@@ -1851,10 +2054,12 @@ function runSearch() {
         <div class="pw-name">${brandLabel} &middot; ${p.name}</div>
         <div class="pw-spec">${specLine(p)}</div>
         <div class="pw-part">${p.part}</div>
+        ${actBlockHTML(p)}
       </div>
       <div class="pw-right">
         <div>
           <div class="pw-price">${fmt(p.price)}</div>
+          ${priceActLineHTML(p)}
           ${CUSTOM_CATALOGUE_ACTIVE ? '' : `<div class="pw-gst">+GST: ${fmt(gst)}</div>
           <div class="pw-gst" style="color:var(--gold);font-size:.65rem;font-weight:600">Total: ${fmt(total)}</div>`}
         </div>
@@ -1899,7 +2104,9 @@ function buildFeatured() {
         <div class="pcard-name">${p.name}</div>
         <div class="pcard-spec">${[p.cpu, p.ram, p.ssd].filter(v => v && v !== '—').join(' · ') || '—'}</div>
         <div class="pcard-price">${fmt(p.price)}</div>
+        ${priceActLineHTML(p)}
         ${CUSTOM_CATALOGUE_ACTIVE ? '' : `<div class="pcard-gst">+18% GST: ${fmt(gst)} &nbsp;|&nbsp; <span style="color:var(--gold)">Total ${fmt(total)}</span></div>`}
+        ${actBlockHTML(p)}
       </div>
       <button class="btn-buy" style="margin:0 20px 20px;width:calc(100% - 40px)"
         onclick="openPay('${p.name.replace(/'/g,"\\'").replace(/`/g,"\\`")} (${p.part})','${(p.cpu+' · '+p.ram+' · '+p.ssd).replace(/'/g,"\\'").replace(/`/g,"\\`")}',${p.price},'${img}')">
