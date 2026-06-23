@@ -423,6 +423,113 @@ footer{background:var(--dark2);padding:60px 80px 28px;border-top:1px solid rgba(
 /* Scanline overlay for gaming cards */
 .ci-glow::before{background-image:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 1px,rgba(0,0,0,.05) 1px,rgba(0,0,0,.05) 2px)!important}
 
+/* ======================================================
+   RESPONSIVE / MOBILE
+   ====================================================== */
+
+/* The custom gold cursor dot+ring are positioned by mousemove JS.
+   Touchscreens never fire mousemove, so without this they'd sit
+   frozen in the top-left corner. Hide them and restore normal
+   touch behaviour on any device without a real pointer. */
+@media (hover:none),(pointer:coarse){
+  #cur,#cur-ring{display:none}
+  body{cursor:auto}
+  .nav-btn,.nav-cta,.nav-logo,.nav-burger,.btn-gold,.btn-outline,.btn-buy,.f-tab,.exp-back,.bp-cta,a.contact-item,.admin-btn,.pt,.ua,.bi,.ec,.wa-fab,.footer-col a,.arrow-btn,.slide-dot{cursor:pointer}
+}
+
+/* ---------- Hamburger nav ---------- */
+.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:34px;height:34px;background:transparent;border:none;cursor:pointer;z-index:901;padding:0}
+.nav-burger span{display:block;width:100%;height:1.5px;background:var(--gold);transition:.3s}
+.nav-burger.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
+.nav-burger.open span:nth-child(2){opacity:0}
+.nav-burger.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+.nav-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:898;opacity:0;pointer-events:none;transition:opacity .35s}
+.nav-backdrop.open{opacity:1;pointer-events:auto}
+
+@media (max-width:900px){
+  #nav{padding:16px 24px}
+  #nav.scrolled{padding:12px 24px}
+  .nav-burger{display:flex}
+  .nav-links{position:fixed;top:0;right:-86%;width:86%;max-width:320px;height:100vh;background:rgba(8,8,8,.98);backdrop-filter:blur(20px);flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:2px;padding:100px 28px 40px;border-left:1px solid rgba(201,168,76,.15);transition:right .4s cubic-bezier(.4,0,.2,1);z-index:899;overflow-y:auto}
+  .nav-links.open{right:0}
+  .nav-btn,.nav-cta{width:100%;text-align:left;padding:14px 4px}
+  .nav-cta{margin-left:0;margin-top:14px;text-align:center}
+
+  /* Hero */
+  #hero{grid-template-columns:1fr;height:auto;min-height:100vh}
+  .hero-left{order:1;padding:120px 24px 50px}
+  .hero-right{order:2;height:300px}
+  .hero-scroll{display:none}
+
+  /* Showcase slider */
+  .slide-content{padding:40px 24px}
+  .slide-counter{left:24px;top:24px}
+  .slide-nav{right:14px;bottom:130px}
+  .slide-arrows{right:10px}
+  .slide-specs{font-size:.72rem}
+
+  /* Featured */
+  #featured{padding:64px 24px}
+  .feat-grid{grid-template-columns:1fr 1fr;gap:14px}
+
+  /* Stats */
+  #stats{padding:44px 24px;grid-template-columns:repeat(2,1fr);gap:28px}
+  .stat-num{font-size:2.6rem}
+
+  /* Brand showcase */
+  #brands-home .section-header{padding:0 24px}
+  .brand-panel{grid-template-columns:1fr;min-height:auto}
+  .bp-img{height:240px}
+  .bp-content{padding:36px 24px}
+  .bp-logo{font-size:2.6rem}
+
+  /* Why */
+  #why{padding:60px 24px}
+  .why-grid{grid-template-columns:1fr;gap:36px}
+  .why-feats{grid-template-columns:1fr 1fr}
+
+  /* Contact */
+  #contact{padding:60px 24px}
+  .contact-grid{grid-template-columns:1fr;gap:36px}
+
+  /* Footer */
+  footer{padding:50px 24px 22px}
+  .footer-grid{grid-template-columns:1fr 1fr;gap:30px}
+
+  /* Explore pages (Lenovo/ASUS/Gigabyte/Search) */
+  .exp-hero{height:240px}
+  .exp-hero-content{padding:26px 20px}
+  .exp-brand-name{font-size:2.1rem}
+  .exp-brand-sub{font-size:.66rem;line-height:1.7}
+  .filter-bar{padding:0 16px;top:60px}
+  .search-bar{padding:16px 16px 0}
+  .prod-list{padding:20px 16px 60px}
+
+  /* Wide product card */
+  .pcard-wide{grid-template-columns:1fr;min-height:auto}
+  .pw-img{height:190px}
+  .pw-body{border-right:none;border-bottom:1px solid rgba(201,168,76,.07)}
+
+  /* Payment modal */
+  .pm-box{grid-template-columns:1fr;max-height:92vh}
+  .pm-prod{border-right:none;border-bottom:1px solid rgba(201,168,76,.1);padding:22px}
+  .pm-pay{padding:20px}
+  .pt-tabs{flex-wrap:wrap}
+}
+
+@media (max-width:540px){
+  .feat-grid{grid-template-columns:1fr}
+  .why-feats{grid-template-columns:1fr}
+  .footer-grid{grid-template-columns:1fr}
+  .footer-bottom{flex-direction:column;align-items:flex-start;gap:8px}
+  .form-row{grid-template-columns:1fr}
+  .hero-h1{font-size:2.5rem}
+  .upi-g,.bg-g,.eg{grid-template-columns:repeat(2,1fr)}
+  .admin-box{padding:26px 20px}
+  .admin-actions{flex-direction:column}
+  .admin-btn{min-width:100%}
+}
+
 </style>
 </head>
 <body>
@@ -493,16 +600,18 @@ footer{background:var(--dark2);padding:60px 80px 28px;border-top:1px solid rgba(
 <!-- NAV -->
 <nav id="nav">
   <a href="#" class="nav-logo" onclick="showPage('home');return false">TECHNET <span>Informatiques</span></a>
+  <button class="nav-burger" id="nav-burger" aria-label="Menu" onclick="toggleMobileNav()"><span></span><span></span><span></span></button>
   <div class="nav-links">
     <button class="nav-btn active" id="nb-home" onclick="showPage('home')">Home</button>
     <button class="nav-btn" id="nb-lenovo" onclick="showPage('lenovo')">Lenovo</button>
     <button class="nav-btn" id="nb-asus" onclick="showPage('asus')">ASUS</button>
     <button class="nav-btn" id="nb-gigabyte" onclick="showPage('gigabyte')">Gigabyte</button>
     <button class="nav-btn" id="nb-search" onclick="showPage('search')">Search</button>
-    <button class="nav-btn" onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})">Contact</button>
-    <button class="nav-cta" onclick="document.getElementById('featured').scrollIntoView({behavior:'smooth'})">Shop Now</button>
+    <button class="nav-btn" onclick="toggleMobileNav(false);document.getElementById('contact').scrollIntoView({behavior:'smooth'})">Contact</button>
+    <button class="nav-cta" onclick="toggleMobileNav(false);document.getElementById('featured').scrollIntoView({behavior:'smooth'})">Shop Now</button>
   </div>
 </nav>
+<div class="nav-backdrop" id="nav-backdrop" onclick="toggleMobileNav(false)"></div>
 
 <!-- ==================== HOME PAGE ==================== -->
 <div class="page active" id="page-home">
@@ -1868,6 +1977,7 @@ function refreshLiveViews() {
 
 // ==================== PAGE ROUTING ====================
 function showPage(id) {
+  toggleMobileNav(false);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -1878,6 +1988,19 @@ function showPage(id) {
   if (id === 'search') runSearch();
   const waFab = document.getElementById('wa-fab');
   if (waFab) waFab.classList.toggle('show', id !== 'home');
+}
+
+// ==================== MOBILE NAV TOGGLE ====================
+function toggleMobileNav(force) {
+  const links = document.querySelector('.nav-links');
+  const burger = document.getElementById('nav-burger');
+  const backdrop = document.getElementById('nav-backdrop');
+  if (!links || !burger) return;
+  const open = typeof force === 'boolean' ? force : !links.classList.contains('open');
+  links.classList.toggle('open', open);
+  burger.classList.toggle('open', open);
+  if (backdrop) backdrop.classList.toggle('open', open);
+  document.body.style.overflow = open ? 'hidden' : '';
 }
 
 // ==================== EXPLORE GRID ====================
