@@ -8,6 +8,12 @@
   "assets": {
     "directory": "."
   },
+  "kv_namespaces": [
+    {
+      "binding": "CATALOGUE_KV",
+      "id": "8977674acde6465bb79f58cfbfa05b54"
+    }
+  ],
   "compatibility_flags": [
     "nodejs_compat"
   ]
